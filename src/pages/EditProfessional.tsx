@@ -1,15 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, query, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+
 
 interface Area {
   name: string;
   displayName: string;
+  active: boolean;
 }
 
+interface Professional {
+  id: string;
+  fullName: string;
+  whatsapp: string;
+  area: string;
+  birthDay: string;
+  gender: string;
+  type: number | string; 
+  manager: string;
+  managerEmail: string;
+  managerWhatsapp: string;
+}
+
+
 const EditProfessional = () => {
-  const [professionals, setProfessionals] = useState([]);
-  const [selectedProfessional, setSelectedProfessional] = useState(null);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -27,8 +44,8 @@ const EditProfessional = () => {
     managerWhatsapp: '',
   });
 
-  // Buscar áreas do Firestore
-  useEffect(() => {
+
+  useEffect(() => { 
     const fetchAreas = async () => {
       try {
         const areasCollection = collection(db, 'areas');
@@ -46,31 +63,38 @@ const EditProfessional = () => {
     fetchAreas();
   }, []);
 
-  // Buscar lista de profissionais
+
   useEffect(() => {
     const fetchProfessionals = async () => {
       try {
         const q = query(collection(db, 'users'));
         const querySnapshot = await getDocs(q);
+        
+        
         const professionalsData = querySnapshot.docs
           .map(doc => ({
             id: doc.id,
             ...doc.data()
           }))
-          .filter(user => user.area)
-          .sort((a, b) => a.fullName.localeCompare(b.fullName));
-
+          .filter(user => 'area' in user && user.area) // Verifica se a propriedade existe
+          .sort((a, b) => {
+            if ('fullName' in a && 'fullName' in b && typeof a.fullName === 'string' && typeof b.fullName === 'string') {
+              return a.fullName.localeCompare(b.fullName);
+            }
+            return 0;
+          }) as Professional[]; 
+        
         setProfessionals(professionalsData);
       } catch (error) {
         console.error('Erro ao buscar profissionais:', error);
         setError('Erro ao carregar lista de profissionais.');
       }
     };
-
+    
     fetchProfessionals();
   }, []);
 
-  const handleProfessionalSelect = (id) => {
+  const handleProfessionalSelect = (id: string) => {
     const professional = professionals.find(p => p.id === id);
     if (professional) {
       setSelectedProfessional(professional);
@@ -90,7 +114,7 @@ const EditProfessional = () => {
     }
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -98,7 +122,7 @@ const EditProfessional = () => {
     }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProfessional) return;
 
@@ -114,10 +138,9 @@ const EditProfessional = () => {
       });
       setSuccess(true);
 
-      // Atualizar a lista de profissionais
       const updatedProfessionals = professionals.map(prof => 
-        prof.id === selectedProfessional.id 
-          ? { ...prof, ...formData, type: parseInt(formData.type) }
+        prof.id === selectedProfessional?.id 
+          ? { ...prof, ...formData, type: parseInt(formData.type) } as Professional
           : prof
       );
       setProfessionals(updatedProfessionals);

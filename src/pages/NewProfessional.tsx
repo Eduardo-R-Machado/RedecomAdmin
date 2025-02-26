@@ -3,9 +3,11 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, collection, setDoc, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
+
 interface Area {
   name: string;
   displayName: string;
+  active?: boolean;
 }
 
 const NewProfessional = () => {
@@ -36,8 +38,8 @@ const NewProfessional = () => {
         const areasSnapshot = await getDocs(areasCollection);
         const areasData = areasSnapshot.docs
           .map(doc => ({ name: doc.id, ...doc.data() } as Area))
-          .filter(area => area.active) // Apenas áreas ativas
-          .sort((a, b) => a.displayName.localeCompare(b.displayName)); // Ordenar por displayName
+          .filter(area => 'active' in area && area.active)
+          .sort((a, b) => a.displayName.localeCompare(b.displayName)); 
         setAreas(areasData);
       } catch (error) {
         console.error('Erro ao buscar áreas:', error);

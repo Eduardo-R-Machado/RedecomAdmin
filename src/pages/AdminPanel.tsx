@@ -30,6 +30,13 @@ interface Professional {
   id: string;
   fullName: string;
   area: string;
+  whatsapp?: string;
+  birthDay?: string;
+  gender?: string;
+  type?: number;
+  manager?: string;
+  managerEmail?: string;
+  managerWhatsapp?: string;
 }
 
 const AdminPanel = () => {
@@ -71,20 +78,24 @@ const AdminPanel = () => {
       const q = query(profsRef);
       const querySnapshot = await getDocs(q);
       
-      // Filtrar apenas usuários com area definida
       const profsData = querySnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        .filter(user => user.area)
-        .sort((a, b) => (a.fullName?.localeCompare(b.fullName) || 0)) as Professional[];
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .filter(user => 'area' in user && user.area)
+      .sort((a, b) => {
+        if ('fullName' in a && 'fullName' in b && typeof a.fullName === 'string' && typeof b.fullName === 'string') {
+          return a.fullName.localeCompare(b.fullName);
+        }
+        return 0;
+      }) as Professional[];
       
       setProfessionals(profsData);
     } catch (error) {
       console.error('Erro ao buscar profissionais:', error);
-    }
-  };
+    } 
+  };  
 
   useEffect(() => {
     fetchDemands();
@@ -299,7 +310,7 @@ const AdminPanel = () => {
               <h3 className="text-gray-400 text-sm">Profissionais envolvidos</h3>
             </div>
 
-            {selectedDemand.involved?.length > 0 ? (
+            {selectedDemand.involved && selectedDemand.involved.length > 0 ? (
               <div className="bg-gray-800/50 p-4 rounded-lg">
                 <ul className="space-y-2">
                   {selectedDemand.involved.map(person => (
@@ -307,12 +318,12 @@ const AdminPanel = () => {
                       <span>{person.name}</span>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation(); // Prevenir propagação do clique
+                          e.stopPropagation(); 
                           removeProfessionalFromDemand(person.uid);
                         }}
                         className="text-red-400 hover:text-red-300 px-2 py-1 rounded-md hover:bg-red-900/20"
                         disabled={savingProfessional}
-                      >
+                      > 
                         Remover
                       </button>
                     </li>

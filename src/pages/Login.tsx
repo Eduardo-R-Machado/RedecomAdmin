@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { auth } from '../config/firebase'; // Certifique-se que este caminho está correto
+import { auth } from '../config/firebase'; 
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,12 @@ const ALLOWED_EMAILS = [
 ];
 
 
+
+interface LocationState {
+  from?: {
+    pathname: string;
+  };
+}
 
 const Login = () => {
   const [email, setEmail] = useState('');

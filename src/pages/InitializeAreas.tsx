@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { collection, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { useState } from 'react';
+import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
+
 
 const InitializeAreas = () => {
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,6 @@ const InitializeAreas = () => {
     try {
       const timestamp = serverTimestamp();
 
-      // Criar cada área no Firestore
       for (const area of areas) {
         await setDoc(doc(db, 'areas', area.name), {
           ...area,
