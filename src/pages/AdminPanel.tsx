@@ -1,16 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, query, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
+interface Person {
+  uid: string;
+  name: string;
+}
+
+interface User {
+  name: string;
+  secretary: string;
+  uid: string;
+}
+
+interface Demand {
+  id: string;
+  subject: string;
+  description: string;
+  status: number;
+  createdAt: string;
+  user?: User;
+  needs?: string[];
+  involved?: Person[];
+  links?: string[];
+  editedBy?: string;
+}
+
+interface Professional {
+  id: string;
+  fullName: string;
+  area: string;
+}
+
 const AdminPanel = () => {
-  const [demands, setDemands] = useState([]);
+  const [demands, setDemands] = useState<Demand[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filteredDemands, setFilteredDemands] = useState([]);
+  const [filteredDemands, setFilteredDemands] = useState<Demand[]>([]);
   const [selectedArea, setSelectedArea] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [uniqueAreas, setUniqueAreas] = useState([]);
-  const [selectedDemand, setSelectedDemand] = useState(null);
-  const [professionals, setProfessionals] = useState([]);
+  const [uniqueAreas, setUniqueAreas] = useState<string[]>([]);
+  const [selectedDemand, setSelectedDemand] = useState<Demand | null>(null);
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [savingProfessional, setSavingProfessional] = useState(false);
   const [selectedProfessional, setSelectedProfessional] = useState('');
@@ -21,12 +51,12 @@ const AdminPanel = () => {
       const demandsRef = collection(db, 'demandas');
       const q = query(demandsRef);
       const querySnapshot = await getDocs(q);
-
+      
       const demandsData = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-
+      })) as Demand[];
+      
       setDemands(demandsData);
     } catch (error) {
       console.error('Erro ao buscar demandas:', error);
@@ -35,21 +65,21 @@ const AdminPanel = () => {
     }
   };
 
-  // Buscar profissionais
   const fetchProfessionals = async () => {
     try {
       const profsRef = collection(db, 'users');
       const q = query(profsRef);
       const querySnapshot = await getDocs(q);
-
+      
+      // Filtrar apenas usuários com area definida
       const profsData = querySnapshot.docs
         .map(doc => ({
           id: doc.id,
           ...doc.data()
         }))
         .filter(user => user.area)
-        .sort((a, b) => a.fullName.localeCompare(b.fullName));
-
+        .sort((a, b) => (a.fullName?.localeCompare(b.fullName) || 0)) as Professional[];
+      
       setProfessionals(profsData);
     } catch (error) {
       console.error('Erro ao buscar profissionais:', error);
@@ -61,7 +91,7 @@ const AdminPanel = () => {
     fetchProfessionals();
   }, []);
 
-  const getStatusText = (status) => {
+  const getStatusText = (status: number): string => {
     switch (status) {
       case 0: return 'Na fila';
       case 1: return 'Em progresso';
@@ -94,18 +124,19 @@ const AdminPanel = () => {
       });
     }
 
-    setFilteredDemands(result);
+    setFilteredDemands(result); 
   }, [selectedArea, searchTerm, demands]);
 
   useEffect(() => {
-    const areas = new Set();
+    const areas = new Set<string>();
     demands.forEach(demand => {
       demand.needs?.forEach(need => areas.add(need));
     });
     setUniqueAreas(Array.from(areas));
-  }, [demands]);
+  }, [demands]);  
 
-  const openDemandDetails = (demand) => {
+  
+  const openDemandDetails = (demand: Demand) => {
     setSelectedDemand(demand);
     setIsModalOpen(true);
   };
@@ -115,15 +146,16 @@ const AdminPanel = () => {
     setSelectedDemand(null);
   };
 
-  // Função para adicionar profissional à demanda
   const addProfessionalToDemand = async () => {
     if (!selectedProfessional || !selectedDemand) return;
-
     setSavingProfessional(true);
     try {
       const professional = professionals.find(p => p.id === selectedProfessional);
-
-      // Verificar se o profissional já está envolvido
+      
+      if (!professional) {
+        throw new Error('Profissional não encontrado');
+      }
+      
       const alreadyInvolved = selectedDemand.involved?.some(p => p.uid === professional.id);
       if (alreadyInvolved) {
         alert('Este profissional já está envolvido nesta demanda.');
@@ -138,26 +170,26 @@ const AdminPanel = () => {
           uid: professional.id
         }
       ];
-
+      
       const demandRef = doc(db, 'demandas', selectedDemand.id);
       await updateDoc(demandRef, {
         involved: newInvolved,
-        editedBy: "Admin"
+        editedBy: "Admin" 
       });
-
+      
       const updatedDemand = {
         ...selectedDemand,
         involved: newInvolved
       };
-
+      
       setSelectedDemand(updatedDemand);
-
-      const updatedDemands = demands.map(d =>
+      
+      const updatedDemands = demands.map(d => 
         d.id === selectedDemand.id ? updatedDemand : d
       );
-
+      
       setDemands(updatedDemands);
-
+      
       setSelectedProfessional('');
     } catch (error) {
       console.error('Erro ao adicionar profissional:', error);
@@ -167,30 +199,39 @@ const AdminPanel = () => {
     }
   };
 
-  const removeProfessionalFromDemand = async (professionalUid) => {
+  const removeProfessionalFromDemand = async (professionalUid: string) => {
     if (!selectedDemand) return;
 
     setSavingProfessional(true);
     try {
-      const newInvolved = selectedDemand.involved.filter(p => p.uid !== professionalUid);
+      // Garantir que involved existe
+      if (!selectedDemand.involved || selectedDemand.involved.length === 0) {
+        throw new Error('Não há profissionais envolvidos');
+      }
 
+      // Filtrar o profissional do array involved
+      const newInvolved = selectedDemand.involved.filter(p => p.uid !== professionalUid);
+      
+      // Atualizar no Firestore
       const demandRef = doc(db, 'demandas', selectedDemand.id);
       await updateDoc(demandRef, {
         involved: newInvolved,
-        editedBy: "Admin"
+        editedBy: "Admin" // Temporário
       });
-
+      
+      // Atualizar estado local
       const updatedDemand = {
         ...selectedDemand,
         involved: newInvolved
       };
-
+      
       setSelectedDemand(updatedDemand);
-
-      const updatedDemands = demands.map(d =>
+      
+      // Atualizar a lista de demandas
+      const updatedDemands = demands.map(d => 
         d.id === selectedDemand.id ? updatedDemand : d
       );
-
+      
       setDemands(updatedDemands);
     } catch (error) {
       console.error('Erro ao remover profissional:', error);
@@ -199,7 +240,6 @@ const AdminPanel = () => {
       setSavingProfessional(false);
     }
   };
-
 
 
   const DemandDetailsModal = () => {
