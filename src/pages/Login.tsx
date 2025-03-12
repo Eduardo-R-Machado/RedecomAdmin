@@ -5,7 +5,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 const ALLOWED_EMAILS = [
   'eduardo.machado@mesquita.rj.gov.br',
-  'daniel.souza@mesquita.rj.gov.br'
+  'daniel.souza@mesquita.rj.gov.br',
+  'everton.rocha@mesquita.rj.gov.br'
+
 ];
 
 
